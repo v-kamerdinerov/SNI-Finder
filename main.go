@@ -237,7 +237,7 @@ func (s *Scanner) Scan(ip net.IP) {
 		return
 	}
 	stats := pinger.Statistics()
-	rtt := stats.AvgRtt
+	rtt := stats.AvgRtt.Milliseconds()
 
 	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 	defer cancel()
@@ -289,6 +289,6 @@ func (s *Scanner) Scan(ip net.IP) {
 			return
 		}
 
-		s.Print(fmt.Sprintf(" %s ---- TLS v%s    ALPN: %s ----    %s:%s ---- Ping RTT: %v", line, TlsDic[state.Version], alpn, certSubject, s.port, rtt))
+		s.Print(fmt.Sprintf(" %s ---- TLS v%s    ALPN: %s ----    %s:%s ---- Ping RTT: %d ms", line, TlsDic[state.Version], alpn, certSubject, s.port, rtt))
 	}
 }
