@@ -64,12 +64,12 @@ type Scanner struct {
 }
 
 type ScanResult struct {
-	IP           string `json:"ip"`
-	Port         string `json:"port"`
-	Ping         int64  `json:"ping"`
-	TLSVersion   string `json:"tls_version"`
-	ALPN         string `json:"alpn"`
-	CommonName   string `json:"common_name"`
+	IP         string `json:"ip"`
+	Port       string `json:"port"`
+	Ping       int64  `json:"ping"`
+	TLSVersion string `json:"tls_version"`
+	ALPN       string `json:"alpn"`
+	CommonName string `json:"common_name"`
 }
 
 func (f *CustomTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
@@ -279,7 +279,10 @@ func (s *Scanner) Scan(ip net.IP) {
 	remoteIP := remoteAddr.IP.String()
 	port := remoteAddr.Port
 	line := fmt.Sprintf("%s:%d", remoteIP, port) + "\t"
-	conn.SetDeadline(time.Now().Add(s.timeout))
+	if err := conn.SetDeadline(time.Now().Add(s.timeout)); err != nil {
+		log.WithError(err).Error("Error setting deadline")
+		return
+	}
 	c := tls.Client(conn, &tls.Config{
 		InsecureSkipVerify: true,
 		NextProtos:         []string{"h2", "http/1.1"},
