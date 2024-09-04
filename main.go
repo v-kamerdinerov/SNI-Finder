@@ -62,9 +62,7 @@ type Scanner struct {
 func (f *CustomTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	timestamp := entry.Time.Format("2006-01-02 15:04:05")
 	msg := entry.Message
-
 	formattedEntry := timestamp + msg + "\n\n"
-
 	return []byte(formattedEntry), nil
 }
 
@@ -72,29 +70,22 @@ func (s *Scanner) Print(outStr string) {
 	parts := strings.Split(outStr, " ")
 	ipAddress := parts[0]
 	rest := strings.Join(parts[1:], " ")
-
 	maxIPLength := len("255.255.255.255")
 	formattedIP := fmt.Sprintf("%-*s", maxIPLength-8, ipAddress)
-
 	logEntry := formattedIP + rest
-
 	domain := extractDomain(logEntry)
-
 	saveDomain(domain, s.domainFile)
-
 	s.logChan <- logEntry
 }
 
 func extractDomain(logEntry string) string {
 	parts := strings.Fields(logEntry)
-
 	for i, part := range parts {
 		if strings.Contains(part, ".") && !strings.HasPrefix(part, "v") && i > 0 {
 			domainParts := strings.Split(part, ":")
 			return domainParts[0]
 		}
 	}
-
 	return ""
 }
 
@@ -226,8 +217,9 @@ func (s *Scanner) Scan(ip net.IP) {
 		}
 		return
 	}
-	pinger.Count = 1
-	pinger.Timeout = s.timeout
+	pinger.Count = 4
+	pinger.Timeout = 2 * time.Second
+	pinger.SetPrivileged(true)
 
 	err = pinger.Run()
 	if err != nil {
@@ -289,6 +281,14 @@ func (s *Scanner) Scan(ip net.IP) {
 			return
 		}
 
-		s.Print(fmt.Sprintf(" %s ---- TLS v%s    ALPN: %s ----    %s:%s ---- Ping RTT: %d ms", line, TlsDic[state.Version], alpn, certSubject, s.port, rtt))
+		s.Print(fmt.Sprintf(
+			"%-21s ---- TLS v%-5s ALPN: %-7s ---- %-30s:%-5s ---- Ping RTT: %4d ms",
+			line,
+			TlsDic[state.Version],
+			alpn,
+			certSubject,
+			s.port,
+			rtt,
+		))
 	}
 }
