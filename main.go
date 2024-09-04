@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"math/big"
@@ -12,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-ping/ping"
 	"github.com/sirupsen/logrus"
 )
 
@@ -23,10 +23,12 @@ const (
 	defaultTimeout     = 4
 	outPutDef          = true
 	outPutFileName     = "results.txt"
+	outPutJsonFileName = "results.json"
 	domainsFileName    = "domains.txt"
 	showFailDef        = false
 	numIPsToCheck      = 10000
 	workerPoolSize     = 100
+	defaultOutputFmt   = "txt"
 )
 
 var log = logrus.New()
@@ -48,6 +50,7 @@ type Scanner struct {
 	port           string
 	showFail       bool
 	output         bool
+	outputFormat   string
 	timeout        time.Duration
 	wg             *sync.WaitGroup
 	numberOfThread int
@@ -57,6 +60,16 @@ type Scanner struct {
 	domainFile     *os.File
 	dialer         *net.Dialer
 	logChan        chan string
+	jsonChan       chan ScanResult
+}
+
+type ScanResult struct {
+	IP           string `json:"ip"`
+	Port         string `json:"port"`
+	Ping         int64  `json:"ping"`
+	TLSVersion   string `json:"tls_version"`
+	ALPN         string `json:"alpn"`
+	CommonName   string `json:"common_name"`
 }
 
 func (f *CustomTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
@@ -76,6 +89,10 @@ func (s *Scanner) Print(outStr string) {
 	domain := extractDomain(logEntry)
 	saveDomain(domain, s.domainFile)
 	s.logChan <- logEntry
+}
+
+func (s *Scanner) PrintJSON(result ScanResult) {
+	s.jsonChan <- result
 }
 
 func extractDomain(logEntry string) string {
@@ -105,6 +122,7 @@ func main() {
 	outPutFile := flag.Bool("o", outPutDef, "Is output to results.txt")
 	timeOutPtr := flag.Int("timeOut", defaultTimeout, "Time out of a scan")
 	showFailPtr := flag.Bool("showFail", showFailDef, "Is Show fail logs")
+	outputFormatPtr := flag.String("outputFormat", defaultOutputFmt, "Output format: txt, json")
 
 	flag.Parse()
 	s := &Scanner{
@@ -112,24 +130,35 @@ func main() {
 		port:           *portPtr,
 		showFail:       *showFailPtr,
 		output:         *outPutFile,
+		outputFormat:   *outputFormatPtr,
 		timeout:        time.Duration(*timeOutPtr) * time.Second,
 		wg:             &sync.WaitGroup{},
 		numberOfThread: *threadPtr,
 		ip:             net.ParseIP(*addrPtr),
 		dialer:         &net.Dialer{},
 		logChan:        make(chan string, numIPsToCheck),
+		jsonChan:       make(chan ScanResult, numIPsToCheck),
 	}
 
 	log.SetFormatter(&CustomTextFormatter{})
 	log.SetLevel(logrus.InfoLevel)
 
 	var err error
-	s.logFile, err = os.OpenFile(outPutFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		log.WithError(err).Error("Failed to open log file")
-		return
+	if s.outputFormat == "txt" {
+		s.logFile, err = os.OpenFile(outPutFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		if err != nil {
+			log.WithError(err).Error("Failed to open log file")
+			return
+		}
+		defer s.logFile.Close()
+	} else if s.outputFormat == "json" {
+		s.logFile, err = os.OpenFile(outPutJsonFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		if err != nil {
+			log.WithError(err).Error("Failed to open JSON log file")
+			return
+		}
+		defer s.logFile.Close()
 	}
-	defer s.logFile.Close()
 
 	s.domainFile, err = os.OpenFile(domainsFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
@@ -155,19 +184,37 @@ func main() {
 	}
 
 	close(ipChan)
-
 	s.wg.Wait()
 	close(s.logChan)
+	close(s.jsonChan)
 	log.Info("Scan completed.")
 }
 
 func (s *Scanner) logWriter() {
-	for str := range s.logChan {
-		log.Info(str)
+	if s.outputFormat == "txt" {
+		for str := range s.logChan {
+			log.Info(str)
+			if s.output {
+				_, err := s.logFile.WriteString(str + "\n")
+				if err != nil {
+					log.WithError(err).Error("Error writing into file")
+				}
+			}
+		}
+	} else if s.outputFormat == "json" {
+		var results []ScanResult
+		for result := range s.jsonChan {
+			results = append(results, result)
+		}
+		jsonData, err := json.MarshalIndent(results, "", "  ")
+		if err != nil {
+			log.WithError(err).Error("Error marshalling JSON")
+			return
+		}
 		if s.output {
-			_, err := s.logFile.WriteString(str + "\n")
+			_, err = s.logFile.Write(jsonData)
 			if err != nil {
-				log.WithError(err).Error("Error writing into file")
+				log.WithError(err).Error("Error writing JSON into file")
 			}
 		}
 	}
@@ -210,38 +257,23 @@ func (s *Scanner) Scan(ip net.IP) {
 		str = "[" + str + "]"
 	}
 
-	pinger, err := ping.NewPinger(str)
-	if err != nil {
-		if s.showFail {
-			s.Print(fmt.Sprintf("%s - Ping failed: %v", str, err))
-		}
-		return
-	}
-	pinger.Count = 4
-	pinger.Timeout = 2 * time.Second
-	pinger.SetPrivileged(true)
+	startTime := time.Now()
 
-	err = pinger.Run()
-	if err != nil {
-		if s.showFail {
-			s.Print(fmt.Sprintf("%s - Ping run failed: %v", str, err))
-		}
-		return
-	}
-	stats := pinger.Statistics()
-	rtt := stats.AvgRtt.Milliseconds()
-
-	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	conn, err := s.dialer.DialContext(ctx, "tcp", str+":"+s.port)
+
 	if err != nil {
 		if s.showFail {
-			s.Print(fmt.Sprintf("%s - Dial failed: %v", str, err))
+			s.Print(fmt.Sprintf("Dial failed: %v", err))
 		}
 		return
 	}
+
 	defer conn.Close()
+
+	ping := time.Since(startTime).Milliseconds()
 
 	remoteAddr := conn.RemoteAddr().(*net.TCPAddr)
 	remoteIP := remoteAddr.IP.String()
@@ -260,35 +292,30 @@ func (s *Scanner) Scan(ip net.IP) {
 		}
 		return
 	}
-	defer c.Close()
 
-	state := c.ConnectionState()
-	alpn := state.NegotiatedProtocol
+	vers := c.ConnectionState().Version
+	versStr := TlsDic[vers]
+	cs := c.ConnectionState()
 
-	if alpn == "" {
-		alpn = "  "
-	}
-
-	if s.showFail || (state.Version == 0x0304 && alpn == "h2") {
-		certSubject := ""
-		if len(state.PeerCertificates) > 0 {
-			certSubject = state.PeerCertificates[0].Subject.CommonName
+	if len(cs.PeerCertificates) > 0 {
+		cert := cs.PeerCertificates[0]
+		commonName := cert.Subject.CommonName
+		alpn := ""
+		if len(cs.NegotiatedProtocol) > 0 {
+			alpn = cs.NegotiatedProtocol
 		}
-
-		numPeriods := strings.Count(certSubject, ".")
-
-		if strings.HasPrefix(certSubject, "*") || certSubject == "localhost" || numPeriods != 1 || certSubject == "invalid2.invalid" || certSubject == "OPNsense.localdomain" {
-			return
+		tlsStr := fmt.Sprintf("v%s\t%s\t%s", versStr, alpn, commonName)
+		if s.outputFormat == "json" {
+			s.PrintJSON(ScanResult{
+				IP:         remoteIP,
+				Port:       fmt.Sprintf("%d", port),
+				Ping:       ping,
+				TLSVersion: versStr,
+				ALPN:       alpn,
+				CommonName: commonName,
+			})
+		} else {
+			s.Print(line + tlsStr)
 		}
-
-		s.Print(fmt.Sprintf(
-			"%-21s ---- TLS v%-5s ALPN: %-7s ---- %-30s:%-5s ---- Ping RTT: %4d ms",
-			line,
-			TlsDic[state.Version],
-			alpn,
-			certSubject,
-			s.port,
-			rtt,
-		))
 	}
 }
