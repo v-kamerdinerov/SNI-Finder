@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-ping/ping"
 	"github.com/sirupsen/logrus"
 )
 
@@ -53,7 +54,7 @@ type Scanner struct {
 	mu             sync.Mutex
 	ip             net.IP
 	logFile        *os.File
-	domainFile     *os.File // New file pointer for domains.txt
+	domainFile     *os.File
 	dialer         *net.Dialer
 	logChan        chan string
 }
@@ -62,44 +63,33 @@ func (f *CustomTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	timestamp := entry.Time.Format("2006-01-02 15:04:05")
 	msg := entry.Message
 
-	// Create the log entry without the "level=info" and with a new line
 	formattedEntry := timestamp + msg + "\n\n"
 
 	return []byte(formattedEntry), nil
 }
 
 func (s *Scanner) Print(outStr string) {
-	// Split the output string into IP address and the rest
 	parts := strings.Split(outStr, " ")
-	ipAddress := parts[0]                // Extract the IP address part
-	rest := strings.Join(parts[1:], " ") // Extract the rest of the message
+	ipAddress := parts[0]
+	rest := strings.Join(parts[1:], " ")
 
-	// Calculate the maximum IP address length
 	maxIPLength := len("255.255.255.255")
-
-	// Format the IP address with a fixed width
 	formattedIP := fmt.Sprintf("%-*s", maxIPLength-8, ipAddress)
 
-	// Create the final log entry with IP alignment
 	logEntry := formattedIP + rest
 
-	// Extract the domain from the log entry
 	domain := extractDomain(logEntry)
 
-	// Save the domain to domains.txt
 	saveDomain(domain, s.domainFile)
 
 	s.logChan <- logEntry
 }
 
 func extractDomain(logEntry string) string {
-	// Split the log entry into words
 	parts := strings.Fields(logEntry)
 
-	// Search for a word that looks like a domain (contains a dot)
 	for i, part := range parts {
 		if strings.Contains(part, ".") && !strings.HasPrefix(part, "v") && i > 0 {
-			// Split the part using ":" and take the first part (domain)
 			domainParts := strings.Split(part, ":")
 			return domainParts[0]
 		}
@@ -139,11 +129,9 @@ func main() {
 		logChan:        make(chan string, numIPsToCheck),
 	}
 
-	// Initialize Logrus settings
 	log.SetFormatter(&CustomTextFormatter{})
-	log.SetLevel(logrus.InfoLevel) // Set the desired log level
+	log.SetLevel(logrus.InfoLevel)
 
-	// Open results.txt file for writing
 	var err error
 	s.logFile, err = os.OpenFile(outPutFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
@@ -152,7 +140,6 @@ func main() {
 	}
 	defer s.logFile.Close()
 
-	// Open domains.txt file for writing
 	s.domainFile, err = os.OpenFile(domainsFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		log.WithError(err).Error("Failed to open domains.txt file")
@@ -162,15 +149,12 @@ func main() {
 
 	go s.logWriter()
 
-	// Create a buffered channel for IPs to scan
 	ipChan := make(chan net.IP, numIPsToCheck)
 
-	// Start the worker pool
 	for i := 0; i < s.numberOfThread; i++ {
 		go s.worker(ipChan)
 	}
 
-	// Generate the IPs to scan and send them to the channel
 	for i := 0; i < numIPsToCheck; i++ {
 		nextIP := s.nextIP(true)
 		if nextIP != nil {
@@ -181,7 +165,6 @@ func main() {
 
 	close(ipChan)
 
-	// Wait for all scans to complete
 	s.wg.Wait()
 	close(s.logChan)
 	log.Info("Scan completed.")
@@ -189,7 +172,7 @@ func main() {
 
 func (s *Scanner) logWriter() {
 	for str := range s.logChan {
-		log.Info(str) // Log with Info level
+		log.Info(str)
 		if s.output {
 			_, err := s.logFile.WriteString(str + "\n")
 			if err != nil {
@@ -236,19 +219,37 @@ func (s *Scanner) Scan(ip net.IP) {
 		str = "[" + str + "]"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	conn, err := s.dialer.DialContext(ctx, "tcp", str+":"+s.port)
-
+	pinger, err := ping.NewPinger(str)
 	if err != nil {
 		if s.showFail {
-			s.Print(fmt.Sprintf("Dial failed: %v", err))
+			s.Print(fmt.Sprintf("%s - Ping failed: %v", str, err))
 		}
 		return
 	}
+	pinger.Count = 1
+	pinger.Timeout = s.timeout
 
-	defer conn.Close() // Ensure the connection is closed
+	err = pinger.Run()
+	if err != nil {
+		if s.showFail {
+			s.Print(fmt.Sprintf("%s - Ping run failed: %v", str, err))
+		}
+		return
+	}
+	stats := pinger.Statistics()
+	rtt := stats.AvgRtt
+
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+	defer cancel()
+
+	conn, err := s.dialer.DialContext(ctx, "tcp", str+":"+s.port)
+	if err != nil {
+		if s.showFail {
+			s.Print(fmt.Sprintf("%s - Dial failed: %v", str, err))
+		}
+		return
+	}
+	defer conn.Close()
 
 	remoteAddr := conn.RemoteAddr().(*net.TCPAddr)
 	remoteIP := remoteAddr.IP.String()
@@ -267,8 +268,7 @@ func (s *Scanner) Scan(ip net.IP) {
 		}
 		return
 	}
-
-	defer c.Close() // Ensure the TLS client is also properly closed
+	defer c.Close()
 
 	state := c.ConnectionState()
 	alpn := state.NegotiatedProtocol
@@ -289,6 +289,6 @@ func (s *Scanner) Scan(ip net.IP) {
 			return
 		}
 
-		s.Print(fmt.Sprint(" ", line, "---- TLS v", TlsDic[state.Version], "    ALPN: ", alpn, " ----    ", certSubject, ":", s.port))
+		s.Print(fmt.Sprintf(" %s ---- TLS v%s    ALPN: %s ----    %s:%s ---- Ping RTT: %v", line, TlsDic[state.Version], alpn, certSubject, s.port, rtt))
 	}
 }
