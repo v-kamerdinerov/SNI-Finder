@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"math/big"
@@ -13,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/airnandez/tlsping"
 	"github.com/sirupsen/logrus"
 )
 
@@ -23,12 +23,12 @@ const (
 	defaultTimeout     = 4
 	outPutDef          = true
 	outPutFileName     = "results.txt"
-	outPutJsonFileName = "results.json"
 	domainsFileName    = "domains.txt"
 	showFailDef        = false
 	numIPsToCheck      = 10000
-	workerPoolSize     = 100
-	defaultOutputFmt   = "txt"
+	tlsCount           = 3
+	tlsHandshake       = false
+	tlsVerify          = true
 )
 
 var log = logrus.New()
@@ -41,18 +41,13 @@ var TlsDic = map[uint16]string{
 	0x0304: "1.3",
 }
 
-type CustomTextFormatter struct {
-	logrus.TextFormatter
-}
-
 type Scanner struct {
 	addr           string
 	port           string
 	showFail       bool
 	output         bool
-	outputFormat   string
 	timeout        time.Duration
-	wg             *sync.WaitGroup
+	wg             sync.WaitGroup
 	numberOfThread int
 	mu             sync.Mutex
 	ip             net.IP
@@ -60,59 +55,6 @@ type Scanner struct {
 	domainFile     *os.File
 	dialer         *net.Dialer
 	logChan        chan string
-	jsonChan       chan ScanResult
-}
-
-type ScanResult struct {
-	IP         string `json:"ip"`
-	Port       string `json:"port"`
-	Ping       int64  `json:"ping"`
-	TLSVersion string `json:"tls_version"`
-	ALPN       string `json:"alpn"`
-	CommonName string `json:"common_name"`
-}
-
-func (f *CustomTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
-	timestamp := entry.Time.Format("2006-01-02 15:04:05")
-	msg := entry.Message
-	formattedEntry := timestamp + msg + "\n\n"
-	return []byte(formattedEntry), nil
-}
-
-func (s *Scanner) Print(outStr string) {
-	parts := strings.Split(outStr, " ")
-	ipAddress := parts[0]
-	rest := strings.Join(parts[1:], " ")
-	maxIPLength := len("255.255.255.255")
-	formattedIP := fmt.Sprintf("%-*s", maxIPLength-8, ipAddress)
-	logEntry := formattedIP + rest
-	domain := extractDomain(logEntry)
-	saveDomain(domain, s.domainFile)
-	s.logChan <- logEntry
-}
-
-func (s *Scanner) PrintJSON(result ScanResult) {
-	s.jsonChan <- result
-}
-
-func extractDomain(logEntry string) string {
-	parts := strings.Fields(logEntry)
-	for i, part := range parts {
-		if strings.Contains(part, ".") && !strings.HasPrefix(part, "v") && i > 0 {
-			domainParts := strings.Split(part, ":")
-			return domainParts[0]
-		}
-	}
-	return ""
-}
-
-func saveDomain(domain string, file *os.File) {
-	if domain != "" {
-		_, err := file.WriteString(domain + "\n")
-		if err != nil {
-			log.WithError(err).Error("Error writing domain into file")
-		}
-	}
 }
 
 func main() {
@@ -122,53 +64,52 @@ func main() {
 	outPutFile := flag.Bool("o", outPutDef, "Is output to results.txt")
 	timeOutPtr := flag.Int("timeOut", defaultTimeout, "Time out of a scan")
 	showFailPtr := flag.Bool("showFail", showFailDef, "Is Show fail logs")
-	outputFormatPtr := flag.String("outputFormat", defaultOutputFmt, "Output format: txt, json")
 
 	flag.Parse()
-	s := &Scanner{
-		addr:           *addrPtr,
-		port:           *portPtr,
-		showFail:       *showFailPtr,
-		output:         *outPutFile,
-		outputFormat:   *outputFormatPtr,
-		timeout:        time.Duration(*timeOutPtr) * time.Second,
-		wg:             &sync.WaitGroup{},
-		numberOfThread: *threadPtr,
-		ip:             net.ParseIP(*addrPtr),
+	scanner := newScanner(*addrPtr, *portPtr, *threadPtr, *timeOutPtr, *outPutFile, *showFailPtr)
+
+	defer scanner.logFile.Close()
+	defer scanner.domainFile.Close()
+
+	go scanner.logWriter()
+
+	// Start the worker pool
+	scanner.startWorkers()
+
+	log.Info("Scan completed.")
+}
+
+func newScanner(addr, port string, threadCount, timeout int, output, showFail bool) *Scanner {
+	scanner := &Scanner{
+		addr:           addr,
+		port:           port,
+		showFail:       showFail,
+		output:         output,
+		timeout:        time.Duration(timeout) * time.Second,
+		numberOfThread: threadCount,
+		ip:             net.ParseIP(addr),
 		dialer:         &net.Dialer{},
 		logChan:        make(chan string, numIPsToCheck),
-		jsonChan:       make(chan ScanResult, numIPsToCheck),
 	}
 
 	log.SetFormatter(&CustomTextFormatter{})
 	log.SetLevel(logrus.InfoLevel)
 
 	var err error
-	if s.outputFormat == "txt" {
-		s.logFile, err = os.OpenFile(outPutFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-		if err != nil {
-			log.WithError(err).Error("Failed to open log file")
-			return
-		}
-		defer s.logFile.Close()
-	} else if s.outputFormat == "json" {
-		s.logFile, err = os.OpenFile(outPutJsonFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-		if err != nil {
-			log.WithError(err).Error("Failed to open JSON log file")
-			return
-		}
-		defer s.logFile.Close()
-	}
-
-	s.domainFile, err = os.OpenFile(domainsFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	scanner.logFile, err = os.OpenFile(outPutFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
-		log.WithError(err).Error("Failed to open domains.txt file")
-		return
+		log.WithError(err).Fatal("Failed to open log file")
 	}
-	defer s.domainFile.Close()
 
-	go s.logWriter()
+	scanner.domainFile, err = os.OpenFile(domainsFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to open domains.txt file")
+	}
 
+	return scanner
+}
+
+func (s *Scanner) startWorkers() {
 	ipChan := make(chan net.IP, numIPsToCheck)
 
 	for i := 0; i < s.numberOfThread; i++ {
@@ -186,35 +127,15 @@ func main() {
 	close(ipChan)
 	s.wg.Wait()
 	close(s.logChan)
-	close(s.jsonChan)
-	log.Info("Scan completed.")
 }
 
 func (s *Scanner) logWriter() {
-	if s.outputFormat == "txt" {
-		for str := range s.logChan {
-			log.Info(str)
-			if s.output {
-				_, err := s.logFile.WriteString(str + "\n")
-				if err != nil {
-					log.WithError(err).Error("Error writing into file")
-				}
-			}
-		}
-	} else if s.outputFormat == "json" {
-		var results []ScanResult
-		for result := range s.jsonChan {
-			results = append(results, result)
-		}
-		jsonData, err := json.MarshalIndent(results, "", "  ")
-		if err != nil {
-			log.WithError(err).Error("Error marshalling JSON")
-			return
-		}
+	for str := range s.logChan {
+		log.Info(str)
 		if s.output {
-			_, err = s.logFile.Write(jsonData)
+			_, err := s.logFile.WriteString(str + "\n")
 			if err != nil {
-				log.WithError(err).Error("Error writing JSON into file")
+				log.WithError(err).Error("Error writing into file")
 			}
 		}
 	}
@@ -252,73 +173,144 @@ func (s *Scanner) nextIP(increment bool) net.IP {
 
 func (s *Scanner) Scan(ip net.IP) {
 	str := ip.String()
-
+	ping := time.Duration(0)
 	if ip.To4() == nil {
 		str = "[" + str + "]"
 	}
 
-	startTime := time.Now()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 	defer cancel()
 
-	conn, err := s.dialer.DialContext(ctx, "tcp", str+":"+s.port)
-
+	conn, err := s.dialer.DialContext(ctx, "tcp", net.JoinHostPort(str, s.port))
 	if err != nil {
 		if s.showFail {
-			s.Print(fmt.Sprintf("Dial failed: %v", err))
+			s.Print(fmt.Sprintf("Dial failed: %v", err), ping)
 		}
 		return
 	}
-
 	defer conn.Close()
-
-	ping := time.Since(startTime).Milliseconds()
 
 	remoteAddr := conn.RemoteAddr().(*net.TCPAddr)
 	remoteIP := remoteAddr.IP.String()
 	port := remoteAddr.Port
-	line := fmt.Sprintf("%s:%d", remoteIP, port) + "\t"
+	line := fmt.Sprintf("%s:%d", remoteIP, port)
+
 	if err := conn.SetDeadline(time.Now().Add(s.timeout)); err != nil {
 		log.WithError(err).Error("Error setting deadline")
 		return
 	}
-	c := tls.Client(conn, &tls.Config{
+
+	tlsConn := tls.Client(conn, &tls.Config{
 		InsecureSkipVerify: true,
 		NextProtos:         []string{"h2", "http/1.1"},
 	})
-	err = c.Handshake()
+	err = tlsConn.Handshake()
 
 	if err != nil {
 		if s.showFail {
-			s.Print(fmt.Sprintf("%s - TLS handshake failed: %v", line, err))
+			s.Print(fmt.Sprintf("%s - TLS handshake failed: %v", line, err), ping)
 		}
 		return
 	}
 
-	vers := c.ConnectionState().Version
-	versStr := TlsDic[vers]
-	cs := c.ConnectionState()
+	defer tlsConn.Close()
 
-	if len(cs.PeerCertificates) > 0 {
-		cert := cs.PeerCertificates[0]
-		commonName := cert.Subject.CommonName
-		alpn := ""
-		if len(cs.NegotiatedProtocol) > 0 {
-			alpn = cs.NegotiatedProtocol
+	state := tlsConn.ConnectionState()
+	alpn := state.NegotiatedProtocol
+
+	if alpn == "" {
+		alpn = "  "
+	}
+
+	if s.showFail || (state.Version == 0x0304 && alpn == "h2") {
+		certSubject := ""
+		if len(state.PeerCertificates) > 0 {
+			certSubject = state.PeerCertificates[0].Subject.CommonName
 		}
-		tlsStr := fmt.Sprintf("v%s\t%s\t%s", versStr, alpn, commonName)
-		if s.outputFormat == "json" {
-			s.PrintJSON(ScanResult{
-				IP:         remoteIP,
-				Port:       fmt.Sprintf("%d", port),
-				Ping:       ping,
-				TLSVersion: versStr,
-				ALPN:       alpn,
-				CommonName: commonName,
-			})
-		} else {
-			s.Print(line + tlsStr)
+
+		numPeriods := strings.Count(certSubject, ".")
+
+		if strings.HasPrefix(certSubject, "*") || certSubject == "localhost" || numPeriods != 1 || certSubject == "invalid2.invalid" || certSubject == "OPNsense.localdomain" {
+			return
+		}
+
+		// Создание конфигурации для tlsping
+		config := tlsping.Config{
+			Count:              tlsCount,
+			AvoidTLSHandshake:  tlsHandshake,
+			InsecureSkipVerify: tlsVerify,
+		}
+
+		result, err := tlsping.Ping(certSubject+":443", &config)
+		avgDuration := time.Duration(result.Avg * float64(time.Second))
+		ping := avgDuration.Truncate(time.Microsecond)
+		if err != nil {
+			s.Print(fmt.Sprintf("%s ---- TLS v%s    ALPN: %s ----    %s:%s ---- TCP ping failed: %v", line, TlsDic[state.Version], alpn, certSubject, s.port, err), ping)
+			return
+		}
+
+		s.Print(fmt.Sprintf("%s ---- TLS v%s    ALPN: %s ----    %s:%s", line, TlsDic[state.Version], alpn, certSubject, s.port), ping)
+	}
+}
+
+func (s *Scanner) Print(outStr string, ping time.Duration) {
+	// Split the output string into IP address and the rest
+	parts := strings.Split(outStr, " ")
+	ipAddress := parts[0]
+	rest := strings.Join(parts[1:], " ")
+
+	// Format the IP address with a fixed width
+	formattedIP := fmt.Sprintf("%-22s", ipAddress)
+
+	// Extract and format TLS and ALPN
+	restParts := strings.Split(rest, "----")
+	tlsAndAlpn := strings.TrimSpace(restParts[1])
+	formattedTLS := fmt.Sprintf("%-22s", tlsAndAlpn)
+
+	// Format domain
+	domain := extractDomain(outStr)
+	formattedDomain := fmt.Sprintf("%-22s", domain)
+
+	// Format ping duration
+	formattedPing := fmt.Sprintf("Ping: %-10s", ping)
+
+	// Create the final log entry with alignment
+	logEntry := fmt.Sprintf("%s%s%s%s", formattedIP, formattedTLS, formattedDomain, formattedPing)
+
+	// Save the domain to domains.txt if needed
+	saveDomain(domain, s.domainFile)
+
+	// Send the log entry to the log channel
+	s.logChan <- logEntry
+}
+
+func extractDomain(logEntry string) string {
+	parts := strings.Fields(logEntry)
+	for i, part := range parts {
+		if strings.Contains(part, ".") && !strings.HasPrefix(part, "v") && i > 0 {
+			domainParts := strings.Split(part, ":")
+			return domainParts[0]
 		}
 	}
+	return ""
+}
+
+func saveDomain(domain string, file *os.File) {
+	if domain != "" {
+		_, err := file.WriteString(domain + "\n")
+		if err != nil {
+			log.WithError(err).Error("Error writing domain into file")
+		}
+	}
+}
+
+type CustomTextFormatter struct {
+	logrus.TextFormatter
+}
+
+func (f *CustomTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	timestamp := entry.Time.Format("2006-01-02 15:04:05")
+	msg := entry.Message
+	formattedEntry := timestamp + " " + msg + "\n\n"
+	return []byte(formattedEntry), nil
 }
