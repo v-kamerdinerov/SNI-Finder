@@ -110,11 +110,11 @@ wget "https://raw.githubusercontent.com/v-kamerdinerov/SNI-Finder/main/install-g
 Here’s a sample output for your reference:
 
 ```
-2024-09-06 22:15:36 95.179.225.231:443    TLS v1.3    ALPN: h2  smoothieness.com      Ping: 127.666ms                     
+2024-09-06 22:15:13 95.179.221.159:443    TLS v1.3    ALPN: h2  ilink-app.com         Ping: 100.254ms                     
 
-2024-09-06 22:15:36 95.179.226.18:443     TLS v1.3    ALPN: h2  addssdo.top           
+2024-09-06 22:15:16 95.179.222.66:443     TLS v1.3    ALPN: h2  cretathemes.com       Ping: 90.27ms                       
 
-2024-09-06 22:15:40 95.179.226.193:443    TLS v1.3    ALPN: h2  shadowcode.io         Ping: 88.232ms                      
+2024-09-06 22:15:17 95.179.222.98:443     TLS v1.3    ALPN: h2  cityy.net             Ping: 98.162ms                     
 
 2024-09-06 22:15:48 Scan completed.
 
