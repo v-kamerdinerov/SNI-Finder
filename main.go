@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"flag"
@@ -8,6 +9,8 @@ import (
 	"math/big"
 	"net"
 	"os"
+	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -25,10 +28,11 @@ const (
 	outPutFileName     = "results.txt"
 	domainsFileName    = "domains.txt"
 	showFailDef        = false
-	numIPsToCheck      = 10000
+	numIPsToCheck      = 1000
 	tlsCount           = 3
 	tlsHandshake       = false
 	tlsVerify          = true
+	numberBestServers  = 5
 )
 
 var log = logrus.New()
@@ -77,6 +81,9 @@ func main() {
 	scanner.startWorkers()
 
 	log.Info("Scan completed.")
+
+	// Choice best servers
+	findTopServers(outPutFileName)
 }
 
 func newScanner(addr, port string, threadCount, timeout int, output, showFail bool) *Scanner {
@@ -96,12 +103,12 @@ func newScanner(addr, port string, threadCount, timeout int, output, showFail bo
 	log.SetLevel(logrus.InfoLevel)
 
 	var err error
-	scanner.logFile, err = os.OpenFile(outPutFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	scanner.logFile, err = os.OpenFile(outPutFileName, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 	if err != nil {
 		log.WithError(err).Fatal("Failed to open log file")
 	}
 
-	scanner.domainFile, err = os.OpenFile(domainsFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	scanner.domainFile, err = os.OpenFile(domainsFileName, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 	if err != nil {
 		log.WithError(err).Fatal("Failed to open domains.txt file")
 	}
@@ -269,16 +276,31 @@ func (s *Scanner) Print(outStr string, ping time.Duration) {
 
 	// Format domain
 	domain := extractDomain(outStr)
-	formattedDomain := fmt.Sprintf("%-22s", domain)
+	var formattedDomain string
+	if domain != "" && !strings.Contains(domain, "Ping:") {
+		formattedDomain = fmt.Sprintf("%-22s", domain)
+	}
 
 	// Format ping duration
-	formattedPing := fmt.Sprintf("Ping: %-10s", ping)
-
+	formattedPing := fmt.Sprintf("Ping: %-30s", ping)
+	if ping == 0 {
+		formattedPing = ""
+	}
 	// Create the final log entry with alignment
-	logEntry := fmt.Sprintf("%s%s%s%s", formattedIP, formattedTLS, formattedDomain, formattedPing)
+	logEntry := fmt.Sprintf("%s%s", formattedIP, formattedTLS)
+
+	if formattedDomain != "" {
+		logEntry += formattedDomain
+	}
+
+	if formattedPing != "" || formattedPing != "0s" {
+		logEntry += formattedPing
+	}
 
 	// Save the domain to domains.txt if needed
-	saveDomain(domain, s.domainFile)
+	if domain != "" {
+		saveDomain(domain, s.domainFile)
+	}
 
 	// Send the log entry to the log channel
 	s.logChan <- logEntry
@@ -313,4 +335,55 @@ func (f *CustomTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	msg := entry.Message
 	formattedEntry := timestamp + " " + msg + "\n\n"
 	return []byte(formattedEntry), nil
+}
+
+func findTopServers(fileName string) {
+	file, err := os.Open(fileName)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to open results.txt file for reading")
+	}
+	defer file.Close()
+
+	type Server struct {
+		Line string
+		Ping time.Duration
+	}
+
+	var servers []Server
+
+	pingRegex := regexp.MustCompile(`Ping:\s*([0-9]+(?:\.[0-9]+)?[a-z]+)`)
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		matches := pingRegex.FindStringSubmatch(line)
+
+		if len(matches) > 1 {
+			pingStr := matches[1]
+			ping, err := time.ParseDuration(pingStr)
+			if err == nil {
+				servers = append(servers, Server{Line: line, Ping: ping})
+			} else {
+				log.WithError(err).Errorf("Failed to parse ping duration from: %s", pingStr)
+			}
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.WithError(err).Fatal("Error reading from results.txt file")
+	}
+
+	sort.Slice(servers, func(i, j int) bool {
+		return servers[i].Ping < servers[j].Ping
+	})
+
+	topCount := numberBestServers
+	if len(servers) < topCount {
+		topCount = len(servers)
+	}
+
+	fmt.Println("Top servers by TLS Ping:")
+	for i := 0; i < topCount; i++ {
+		fmt.Printf("%d: %s (Ping: %s)\n", i+1, servers[i].Line, servers[i].Ping)
+	}
 }
