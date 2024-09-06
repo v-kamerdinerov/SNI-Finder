@@ -274,18 +274,25 @@ func (s *Scanner) Print(outStr string, ping time.Duration) {
 	tlsAndAlpn := strings.TrimSpace(restParts[1])
 	formattedTLS := fmt.Sprintf("%-22s", tlsAndAlpn)
 
-	// Format domain
+	// Extract domain from the log entry
 	domain := extractDomain(outStr)
+
+	// Correctly format domain
 	var formattedDomain string
-	if domain != "" && !strings.Contains(domain, "Ping:") {
+	if domain != "" && domain != ipAddress {
 		formattedDomain = fmt.Sprintf("%-22s", domain)
+	} else {
+		formattedDomain = fmt.Sprintf("%-22s", "") // If no domain, leave it empty
 	}
 
 	// Format ping duration
-	formattedPing := fmt.Sprintf("Ping: %-30s", ping)
+	var formattedPing string
 	if ping == 0 {
 		formattedPing = ""
+	} else {
+		formattedPing = fmt.Sprintf("Ping: %-30s", ping)
 	}
+
 	// Create the final log entry with alignment
 	logEntry := fmt.Sprintf("%s%s", formattedIP, formattedTLS)
 
@@ -293,12 +300,12 @@ func (s *Scanner) Print(outStr string, ping time.Duration) {
 		logEntry += formattedDomain
 	}
 
-	if formattedPing != "" && formattedPing != "0s" {
+	if formattedPing != "" {
 		logEntry += formattedPing
 	}
 
 	// Save the domain to domains.txt if needed
-	if domain != "" {
+	if domain != "" && domain != ipAddress {
 		saveDomain(domain, s.domainFile)
 	}
 
