@@ -241,7 +241,7 @@ func (s *Scanner) Scan(ip net.IP) {
 			return
 		}
 
-		// Создание конфигурации для tlsping
+		// Config for tlsping
 		config := tlsping.Config{
 			Count:              tlsCount,
 			AvoidTLSHandshake:  tlsHandshake,
