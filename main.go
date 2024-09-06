@@ -293,7 +293,7 @@ func (s *Scanner) Print(outStr string, ping time.Duration) {
 		logEntry += formattedDomain
 	}
 
-	if formattedPing != "" || formattedPing != "0s" {
+	if formattedPing != "" && formattedPing != "0s" {
 		logEntry += formattedPing
 	}
 
