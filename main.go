@@ -32,7 +32,7 @@ const (
 	tlsCount           = 3
 	tlsHandshake       = false
 	tlsVerify          = true
-	numberBestServers  = 5
+	numberBestServers  = 10
 )
 
 var log = logrus.New()

@@ -20,11 +20,11 @@ This app scans a range of IP addresses for domains with TLS 1.3 and HTTP/2 (h2) 
 
 ## Features
 
-| Feature                | Description                                              |
-|------------------------|----------------------------------------------------------|
+| Feature             | Description                                              |
+|---------------------|----------------------------------------------------------|
 | **TLS 1.3 and HTTP/2** | Scans for domains supporting TLS 1.3 and HTTP/2 to identify modern, secure configurations. |
-| **TLS Ping Display**   | Shows TLS Ping results for the scanned domains, helping assess response times. |
-| **Top 5 Servers**      | Outputs the top 5 servers based on the lowest ping values, useful for prioritizing fast servers. |
+| **TLS Ping Display** | Shows TLS Ping results for the scanned domains, helping assess response times. |
+| **Top Servers**     | Outputs the top servers based on the lowest ping values, useful for prioritizing fast servers. |
 
 ### Output Files
 - `results.txt`: Contains the detailed scan log.
