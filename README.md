@@ -90,15 +90,15 @@ wget "https://raw.githubusercontent.com/hawshemi/SNI-Finder/main/install-go.sh" 
 
 1. Clone the repository:
     ```bash
-    git clone https://github.com/hawshemi/SNI-Finder.git 
+    git clone https://github.com/v-kamerdinerov/SNI-Finder.git 
     ```
 2. Navigate into the repository directory:
     ```bash
     cd SNI-Finder 
     ```
-3. Download and install the required package:
+3. Download and install the all required package:
     ```bash
-    go get github.com/sirupsen/logrus
+    go mod tidy
     ```
 4. Build the project:
     ```bash
@@ -110,15 +110,20 @@ wget "https://raw.githubusercontent.com/hawshemi/SNI-Finder/main/install-go.sh" 
 Here’s a sample output for your reference:
 
 ```
-Scanning IP: 192.168.1.1
-- Domain: example.com
-- TLS Ping: 15ms
-- Protocol: TLS 1.3, HTTP/2
-Top 5 Servers:
-1. example1.com - 10ms
-2. example2.com - 12ms
-3. example3.com - 14ms
-...
+2024-09-06 22:15:36 95.179.225.231:443    TLS v1.3    ALPN: h2  smoothieness.com      Ping: 127.666ms                     
+
+2024-09-06 22:15:36 95.179.226.18:443     TLS v1.3    ALPN: h2  addssdo.top           
+
+2024-09-06 22:15:40 95.179.226.193:443    TLS v1.3    ALPN: h2  shadowcode.io         Ping: 88.232ms                      
+
+2024-09-06 22:15:48 Scan completed.
+
+Top servers by TLS Ping:
+1: 95.179.190.252:443    TLS v1.3    ALPN: h2  cloudflare.com        Ping: 29.271ms                       (Ping: 29.271ms)
+2: 95.179.211.147:443    TLS v1.3    ALPN: h2  cloudflare-dns.com    Ping: 29.84ms                        (Ping: 29.84ms)
+3: 95.179.201.194:443    TLS v1.3    ALPN: h2  belugabahis.com       Ping: 69.107ms                       (Ping: 69.107ms)
+4: 95.179.207.32:443     TLS v1.3    ALPN: h2  actlocalmedia.com     Ping: 69.762ms                       (Ping: 69.762ms)
+5: 95.179.210.147:443    TLS v1.3    ALPN: h2  webnativ.fr           Ping: 70.294ms                       (Ping: 70.294ms)
 ```
 
 ## Ethical Usage
