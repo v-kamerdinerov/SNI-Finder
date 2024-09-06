@@ -1,56 +1,56 @@
 #!/bin/bash
 
-
 # Function to check if the script is being run as root
 check_root() {
     if [ "$EUID" -ne 0 ]; then
-        echo 
+        echo
         echo "Please run this script as root."
-        echo 
+        echo
         sleep 1
         exit 1
     fi
 }
 
-
-# Install Dependencies
+# Function to install dependencies based on package manager
 install_package() {
-    
-    # Update and upgrade
-    echo 
-    echo "Updating the OS..."
-    echo 
+    # Detect package manager
+    if command -v apt > /dev/null; then
+        PKG_MANAGER="apt"
+    elif command -v yum > /dev/null; then
+        PKG_MANAGER="yum"
+    else
+        echo "Unsupported package manager. Exiting."
+        exit 1
+    fi
+
+    echo
+    echo "Updating the OS and installing dependencies..."
+    echo
     sleep 0.5
 
-    sudo apt update -q
-    sudo apt upgrade -y
+    if [ "$PKG_MANAGER" == "apt" ]; then
+        sudo apt update -q
+        sudo apt upgrade -y
+        sudo apt install -y curl wget build-essential ca-certificates git
+    elif [ "$PKG_MANAGER" == "yum" ]; then
+        sudo yum update -y
+        sudo yum groupinstall -y "Development Tools"
+        sudo yum install -y curl wget git ca-certificates
+    fi
 
-    echo 
-    echo "OS Updated & Upgraded."
-    echo 
-    sleep 0.5
-
-    echo 
-    echo "Installing Dependencies..."
-    echo 
-
-    sudo apt install -y curl wget build-essential ca-certificates git
-
-    echo 
-    echo "Dependencies Installed."
-    echo 
+    echo
+    echo "OS Updated & Dependencies Installed."
+    echo
     sleep 0.5
 }
 
-
 # Function to download and install Go
 install_go() {
-    echo 
-    echo "Installing Go..."
-    echo 
+    local go_version="go1.21.0"
+    echo
+    echo "Installing Go $go_version..."
+    echo
     sleep 0.5
-    local go_version
-    go_version=$(curl -sL https://golang.org/VERSION?m=text | head -1)
     local go_url="https://go.dev/dl/$go_version.linux-amd64.tar.gz"
     sleep 0.5
 
@@ -61,7 +61,7 @@ install_go() {
     # Download and extract the Go archive
     sudo curl -sLo go.tar.gz "$go_url"
     sleep 0.5
-    
+
     sudo tar -C /usr/local/ -xzf go.tar.gz
     sleep 0.5
 
@@ -79,22 +79,16 @@ install_go() {
     go version
     sleep 0.5
 
-    echo 
-    echo "Go installed Succesfully."
-    echo 
+    echo
+    echo "Go $go_version installed successfully."
+    echo
 }
-
 
 # Check if running as root
 check_root
 
-
 # Install dependencies for Go and Git
 install_package
 
-
 # Install Go
 install_go
-
-
-

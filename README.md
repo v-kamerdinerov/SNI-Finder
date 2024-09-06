@@ -80,9 +80,9 @@ Install `wget`:
 sudo apt install -y wget
 ```
 
-Run this script to install Go and other dependencies _(Debian & Ubuntu)_:
+Run this script to install Go and other dependencies _(Debian & Ubuntu & RedOS $ RHEL)_:
 ```bash
-wget "https://raw.githubusercontent.com/hawshemi/SNI-Finder/main/install-go.sh" -O install-go.sh && chmod +x install-go.sh && bash install-go.sh
+wget "https://raw.githubusercontent.com/v-kamerdinerov/SNI-Finder/main/install-go.sh" -O install-go.sh && chmod +x install-go.sh && bash install-go.sh
 ```
 > **Tip:** A system reboot is recommended after installation.
 
