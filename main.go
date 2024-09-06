@@ -28,7 +28,7 @@ const (
 	outPutFileName     = "results.txt"
 	domainsFileName    = "domains.txt"
 	showFailDef        = false
-	numIPsToCheck      = 1000
+	numIPsToCheck      = 10000
 	tlsCount           = 3
 	tlsHandshake       = false
 	tlsVerify          = true

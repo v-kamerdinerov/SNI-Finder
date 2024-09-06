@@ -33,6 +33,18 @@ Be careful when choosing an architecture, all binaries are available in two vers
 
 #### Replace `ip` with your VPS IP Address.
 
+## Params
+
+| Argument       | Type    | Default Value | Description                                         |
+|----------------|---------|---------------|-----------------------------------------------------|
+| `-addr`        | string  | `0.0.0.0`     | The starting address for the scan.                  |
+| `-port`        | string  | `443`         | The port to scan.                                   |
+| `-thread`      | int     | `128`         | The number of threads to run in parallel for scanning. |
+| `-o`           | bool    | `true`        | Enable or disable output to the `results.txt` file. |
+| `-timeOut`     | int     | `4`           | The scan timeout in seconds.                        |
+| `-showFail`    | bool    | `false`       | Show logs for failed scans.                         |
+
+
 
 ## Build
 
