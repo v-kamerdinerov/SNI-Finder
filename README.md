@@ -1,6 +1,15 @@
 # SNI Finder
 
-This script will scan all domains with `TLS 1.3` and `h2` enabled on your VPS IP address range. These domains are useful for SNI domain names in various configurations and tests.
+
+This app scans a range of IP addresses for domains with TLS 1.3 and HTTP/2 (h2) enabled. It is designed to identify useful SNI (Server Name Indication) domains for various configurations and tests.
+
+### Features
+
+| Feature                | Description                                              |
+|------------------------|----------------------------------------------------------|
+| TLS 1.3 and HTTP/2     | Scans for domains supporting TLS 1.3 and HTTP/2.        |
+| TLS Ping Display       | Displays TLS Ping results for the scanned domains.      |
+| Top 5 Servers          | Outputs the top 5 servers based on the lowest ping values. |
 
 When you begin the scan, two files are created: `results.txt` contains the output log, while `domains.txt` only contains the domain names.
 
