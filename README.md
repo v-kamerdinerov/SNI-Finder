@@ -71,6 +71,27 @@ Download the appropriate binary for your system architecture (`amd64` or `arm64`
 | `-timeOut`     | int     | `4`           | The scan timeout in seconds.                        |
 | `-showFail`    | bool    | `false`       | Show logs for failed scans.                         |
 
+## Example Output
+
+Here’s a sample output for your reference:
+
+```
+2024-09-06 22:15:13 95.179.221.159:443    TLS v1.3    ALPN: h2  ilink-app.com         Ping: 100.254ms                     
+
+2024-09-06 22:15:16 95.179.222.66:443     TLS v1.3    ALPN: h2  cretathemes.com       Ping: 90.27ms                       
+
+2024-09-06 22:15:17 95.179.222.98:443     TLS v1.3    ALPN: h2  cityy.net             Ping: 98.162ms                     
+
+2024-09-06 22:15:48 Scan completed.
+
+Top servers by TLS Ping:
+1: 95.179.190.252:443    TLS v1.3    ALPN: h2  cloudflare.com        Ping: 29.271ms                       (Ping: 29.271ms)
+2: 95.179.211.147:443    TLS v1.3    ALPN: h2  cloudflare-dns.com    Ping: 29.84ms                        (Ping: 29.84ms)
+3: 95.179.201.194:443    TLS v1.3    ALPN: h2  belugabahis.com       Ping: 69.107ms                       (Ping: 69.107ms)
+4: 95.179.207.32:443     TLS v1.3    ALPN: h2  actlocalmedia.com     Ping: 69.762ms                       (Ping: 69.762ms)
+5: 95.179.210.147:443    TLS v1.3    ALPN: h2  webnativ.fr           Ping: 70.294ms                       (Ping: 70.294ms)
+```
+
 ## Building from Source
 
 ### Prerequisites
@@ -104,27 +125,6 @@ wget "https://raw.githubusercontent.com/v-kamerdinerov/SNI-Finder/main/install-g
     ```bash
     CGO_ENABLED=0 go build
     ```
-
-## Example Output
-
-Here’s a sample output for your reference:
-
-```
-2024-09-06 22:15:13 95.179.221.159:443    TLS v1.3    ALPN: h2  ilink-app.com         Ping: 100.254ms                     
-
-2024-09-06 22:15:16 95.179.222.66:443     TLS v1.3    ALPN: h2  cretathemes.com       Ping: 90.27ms                       
-
-2024-09-06 22:15:17 95.179.222.98:443     TLS v1.3    ALPN: h2  cityy.net             Ping: 98.162ms                     
-
-2024-09-06 22:15:48 Scan completed.
-
-Top servers by TLS Ping:
-1: 95.179.190.252:443    TLS v1.3    ALPN: h2  cloudflare.com        Ping: 29.271ms                       (Ping: 29.271ms)
-2: 95.179.211.147:443    TLS v1.3    ALPN: h2  cloudflare-dns.com    Ping: 29.84ms                        (Ping: 29.84ms)
-3: 95.179.201.194:443    TLS v1.3    ALPN: h2  belugabahis.com       Ping: 69.107ms                       (Ping: 69.107ms)
-4: 95.179.207.32:443     TLS v1.3    ALPN: h2  actlocalmedia.com     Ping: 69.762ms                       (Ping: 69.762ms)
-5: 95.179.210.147:443    TLS v1.3    ALPN: h2  webnativ.fr           Ping: 70.294ms                       (Ping: 70.294ms)
-```
 
 ## Ethical Usage
 
