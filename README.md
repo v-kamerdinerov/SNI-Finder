@@ -1,6 +1,11 @@
 
 # SNI Finder
 
+![GitHub CI Status](https://github.com/v-kamerdinerov/SNI-Finder/actions/workflows/lint.yml/badge.svg)
+![GitHub CI Status](https://github.com/v-kamerdinerov/SNI-Finder/actions/workflows/release.yml/badge.svg)
+![GitHub](https://img.shields.io/github/license/v-kamerdinerov/SNI-Finder)
+[![GitHub tag](https://img.shields.io/github/tag/v-kamerdinerov/SNI-Finder.svg)](https://github.com/v-kamerdinerov/SNI-Finder/tags)
+
 This app scans a range of IP addresses for domains with TLS 1.3 and HTTP/2 (h2) enabled. It is designed to identify useful SNI (Server Name Indication) domains for various configurations and tests.
 
 ## Table of Contents
