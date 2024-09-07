@@ -46,7 +46,7 @@ Download the appropriate binary for your system architecture (`amd64` or `arm64`
     ```
 2. Run the scanner:
     ```bash
-    ./SNI-Finder-linux-amd64 -addr <ip-address>
+    ./SNI-Finder -addr <ip-address>
     ```
 
 ### Run on Windows:
