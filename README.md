@@ -42,7 +42,7 @@ Download the appropriate binary for your system architecture (`amd64` or `arm64`
 
 1. Download and set up the binary:
     ```bash
-    wget "https://github.com/hawshemi/SNI-Finder/releases/latest/download/SNI-Finder-$(uname -s | tr A-Z a-z)-amd64" -O SNI-Finder && chmod +x SNI-Finder
+    wget "https://github.com/v-kamerdinerov/SNI-Finder/releases/latest/download/SNI-Finder-$(uname -s | tr A-Z a-z)-amd64" -O SNI-Finder && chmod +x SNI-Finder
     ```
 2. Run the scanner:
     ```bash
@@ -51,7 +51,7 @@ Download the appropriate binary for your system architecture (`amd64` or `arm64`
 
 ### Run on Windows:
 
-1. Download the binary from [Releases](https://github.com/hawshemi/SNI-Finder/releases/latest).
+1. Download the binary from [Releases](https://github.com/v-kamerdinerov/SNI-Finder/releases/latest).
 2. Open `CMD` or `Powershell` in the download directory.
 3. Run the scanner:
     ```cmd
