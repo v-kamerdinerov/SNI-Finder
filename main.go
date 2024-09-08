@@ -271,7 +271,12 @@ func (s *Scanner) Print(outStr string, ping time.Duration) {
 
 	// Extract and format TLS and ALPN
 	restParts := strings.Split(rest, "----")
-	tlsAndAlpn := strings.TrimSpace(restParts[1])
+	var tlsAndAlpn string
+	if len(restParts) > 1 {
+		tlsAndAlpn = strings.TrimSpace(restParts[1])
+	} else {
+		tlsAndAlpn = "Unknown TLS/ALPN"
+	}
 	formattedTLS := fmt.Sprintf("%-22s", tlsAndAlpn)
 
 	// Extract domain from the log entry
@@ -358,39 +363,53 @@ func findTopServers(fileName string) {
 
 	var servers []Server
 
+	// Regex to extract Ping value
 	pingRegex := regexp.MustCompile(`Ping:\s*([0-9]+(?:\.[0-9]+)?[a-z]+)`)
+	// Regex to filter lines with ALPN: h2 and a domain name
+	alpnH2Regex := regexp.MustCompile(`ALPN:\s*h2\s+([a-zA-Z0-9\.\-]+)`)
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		matches := pingRegex.FindStringSubmatch(line)
 
-		if len(matches) > 1 {
-			pingStr := matches[1]
-			ping, err := time.ParseDuration(pingStr)
-			if err == nil {
-				servers = append(servers, Server{Line: line, Ping: ping})
-			} else {
-				log.WithError(err).Errorf("Failed to parse ping duration from: %s", pingStr)
+		// Check if the line matches the ALPN: h2 filter
+		if alpnH2Regex.MatchString(line) {
+			matches := pingRegex.FindStringSubmatch(line)
+
+			// Extract the Ping value if present
+			if len(matches) > 1 {
+				pingStr := matches[1]
+				ping, err := time.ParseDuration(pingStr)
+				if err == nil {
+					// Add the server line and parsed ping duration to the slice
+					servers = append(servers, Server{Line: line, Ping: ping})
+				} else {
+					log.WithError(err).Errorf("Failed to parse ping duration from: %s", pingStr)
+				}
 			}
 		}
 	}
 
+	// Check for scanning errors
 	if err := scanner.Err(); err != nil {
 		log.WithError(err).Fatal("Error reading from results.txt file")
 	}
 
+	// Sort servers by Ping value
 	sort.Slice(servers, func(i, j int) bool {
 		return servers[i].Ping < servers[j].Ping
 	})
 
+	// Determine the number of servers to display
 	topCount := numberBestServers
 	if len(servers) < topCount {
 		topCount = len(servers)
 	}
 
+	// Display top servers, keeping original lines from the results file
 	fmt.Println("Top servers by TLS Ping:")
 	for i := 0; i < topCount; i++ {
-		fmt.Printf("%d: %s (Ping: %s)\n", i+1, servers[i].Line, servers[i].Ping)
+		// Print the original line from the results file
+		fmt.Printf("%d: %s\n", i+1, servers[i].Line)
 	}
 }
