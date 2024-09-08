@@ -62,12 +62,12 @@ type Scanner struct {
 }
 
 func main() {
-	addrPtr := flag.String("addr", defaultAddress, "Destination to start scan")
-	portPtr := flag.String("port", defaultPort, "Port to scan")
-	threadPtr := flag.Int("thread", defaultThreadCount, "Number of threads to scan in parallel")
+	addrPtr := flag.String("addr", defaultAddress, "The starting address for the scan")
+	portPtr := flag.String("port", defaultPort, "The port to scan")
+	threadPtr := flag.Int("thread", defaultThreadCount, "The number of threads to run in parallel for scanning")
 	outPutFile := flag.Bool("o", outPutDef, "Is output to results.txt")
-	timeOutPtr := flag.Int("timeOut", defaultTimeout, "Time out of a scan")
-	showFailPtr := flag.Bool("showFail", showFailDef, "Is Show fail logs")
+	timeOutPtr := flag.Int("timeOut", defaultTimeout, "The scan timeout in seconds")
+	showFailPtr := flag.Bool("showFail", showFailDef, "Show logs for failed scans")
 
 	flag.Parse()
 	scanner := newScanner(*addrPtr, *portPtr, *threadPtr, *timeOutPtr, *outPutFile, *showFailPtr)
@@ -352,7 +352,7 @@ func (f *CustomTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 func findTopServers(fileName string) {
 	file, err := os.Open(fileName)
 	if err != nil {
-		log.WithError(err).Fatal("Failed to open results.txt file for reading")
+		log.Fatalf("Failed to open %s for reading: %v", fileName, err)
 	}
 	defer file.Close()
 
@@ -363,36 +363,34 @@ func findTopServers(fileName string) {
 
 	var servers []Server
 
-	// Regex to extract Ping value
+	// Regex to extract ALPN and Ping values
+	alpnRegex := regexp.MustCompile(`ALPN:\s*h2\s+([a-zA-Z0-9\.\-]+)`)
 	pingRegex := regexp.MustCompile(`Ping:\s*([0-9]+(?:\.[0-9]+)?[a-z]+)`)
-	// Regex to filter lines with ALPN: h2 and a domain name
-	alpnH2Regex := regexp.MustCompile(`ALPN:\s*h2\s+([a-zA-Z0-9\.\-]+)`)
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// Check if the line matches the ALPN: h2 filter
-		if alpnH2Regex.MatchString(line) {
-			matches := pingRegex.FindStringSubmatch(line)
-
+		// Extract ALPN value and ensure it's followed by a domain name
+		alpnMatches := alpnRegex.FindStringSubmatch(line)
+		if len(alpnMatches) > 1 && strings.TrimSpace(alpnMatches[1]) != "" {
 			// Extract the Ping value if present
-			if len(matches) > 1 {
-				pingStr := matches[1]
+			pingMatches := pingRegex.FindStringSubmatch(line)
+			if len(pingMatches) > 1 {
+				pingStr := pingMatches[1]
 				ping, err := time.ParseDuration(pingStr)
 				if err == nil {
 					// Add the server line and parsed ping duration to the slice
 					servers = append(servers, Server{Line: line, Ping: ping})
 				} else {
-					log.WithError(err).Errorf("Failed to parse ping duration from: %s", pingStr)
+					log.Printf("Failed to parse ping duration from: %s, error: %v", pingStr, err)
 				}
 			}
 		}
 	}
 
-	// Check for scanning errors
 	if err := scanner.Err(); err != nil {
-		log.WithError(err).Fatal("Error reading from results.txt file")
+		log.Fatalf("Error reading from %s: %v", fileName, err)
 	}
 
 	// Sort servers by Ping value
@@ -406,10 +404,9 @@ func findTopServers(fileName string) {
 		topCount = len(servers)
 	}
 
-	// Display top servers, keeping original lines from the results file
+	// Display top servers, keeping original lines
 	fmt.Println("Top servers by TLS Ping:")
 	for i := 0; i < topCount; i++ {
-		// Print the original line from the results file
 		fmt.Printf("%d: %s\n", i+1, servers[i].Line)
 	}
 }
