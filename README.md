@@ -81,20 +81,25 @@ Download the appropriate binary for your system architecture (`amd64` or `arm64`
 Here’s a sample output for your reference:
 
 ```
-2024-09-06 22:15:13 95.179.221.159:443    TLS v1.3    ALPN: h2  ilink-app.com         Ping: 100.254ms                     
+2024-09-08 22:25:49 37.139.62.38:443      TLS v1.3    ALPN: h2  pixelproof.ru         Ping: 22.315ms                      
 
-2024-09-06 22:15:16 95.179.222.66:443     TLS v1.3    ALPN: h2  cretathemes.com       Ping: 90.27ms                       
+2024-09-08 22:25:51 37.139.62.151:443     TLS v1.3    ALPN: h2  maelia.rs             Ping: 34.011ms                      
 
-2024-09-06 22:15:17 95.179.222.98:443     TLS v1.3    ALPN: h2  cityy.net             Ping: 98.162ms                     
+2024-09-08 22:25:51 37.139.62.192:443     TLS v1.3    ALPN: h2  doterra-challenge.ru  Ping: 22.68ms                       
 
-2024-09-06 22:15:48 Scan completed.
+2024-09-08 22:28:06 Scan completed.
 
 Top servers by TLS Ping:
-1: 95.179.190.252:443    TLS v1.3    ALPN: h2  cloudflare.com        Ping: 29.271ms                       (Ping: 29.271ms)
-2: 95.179.211.147:443    TLS v1.3    ALPN: h2  cloudflare-dns.com    Ping: 29.84ms                        (Ping: 29.84ms)
-3: 95.179.201.194:443    TLS v1.3    ALPN: h2  belugabahis.com       Ping: 69.107ms                       (Ping: 69.107ms)
-4: 95.179.207.32:443     TLS v1.3    ALPN: h2  actlocalmedia.com     Ping: 69.762ms                       (Ping: 69.762ms)
-5: 95.179.210.147:443    TLS v1.3    ALPN: h2  webnativ.fr           Ping: 70.294ms                       (Ping: 70.294ms)
+1: 37.139.41.28:443      TLS v1.3    ALPN: h2  jsdaddy.tech          Ping: 3.121ms                       
+2: 37.139.42.255:443     TLS v1.3    ALPN: h2  malyi-biznes.ru       Ping: 3.496ms                       
+3: 37.139.42.35:443      TLS v1.3    ALPN: h2  88date.co             Ping: 3.797ms                       
+4: 37.139.41.247:443     TLS v1.3    ALPN: h2  you-note.ru           Ping: 3.804ms                       
+5: 37.139.43.113:443     TLS v1.3    ALPN: h2  medvuza.ru            Ping: 4.029ms                       
+6: 37.139.40.192:443     TLS v1.3    ALPN: h2  xn--8f9ac.xn--p1ai    Ping: 9.772ms                       
+7: 37.139.42.68:443      TLS v1.3    ALPN: h2  mega74.ru             Ping: 11.621ms                      
+8: 37.139.62.38:443      TLS v1.3    ALPN: h2  pixelproof.ru         Ping: 22.315ms                      
+9: 37.139.62.192:443     TLS v1.3    ALPN: h2  doterra-challenge.ru  Ping: 22.68ms                       
+10: 37.139.62.151:443     TLS v1.3    ALPN: h2  maelia.rs             Ping: 34.011ms
 ```
 
 ## Building from Source
