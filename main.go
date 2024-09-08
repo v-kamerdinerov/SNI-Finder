@@ -20,19 +20,19 @@ import (
 )
 
 const (
-	defaultAddress     = "0.0.0.0"
-	defaultPort        = "443"
-	defaultThreadCount = 128
-	defaultTimeout     = 4
-	outPutDef          = true
-	outPutFileName     = "results.txt"
-	domainsFileName    = "domains.txt"
-	showFailDef        = false
-	numIPsToCheck      = 10000
-	tlsCount           = 3
-	tlsHandshake       = false
-	tlsVerify          = true
-	numberBestServers  = 10
+	defaultAddress       = "0.0.0.0"
+	defaultPort          = "443"
+	defaultThreadCount   = 128
+	defaultTimeout       = 4
+	outPutDef            = true
+	outPutFileName       = "results.txt"
+	domainsFileName      = "domains.txt"
+	showFailDef          = false
+	defaultNumIPsToCheck = 10000
+	defaultTlsCount      = 3
+	tlsHandshake         = false
+	tlsVerify            = true
+	defaultTopServers    = 10
 )
 
 var log = logrus.New()
@@ -96,7 +96,7 @@ func newScanner(addr, port string, threadCount, timeout int, output, showFail bo
 		numberOfThread: threadCount,
 		ip:             net.ParseIP(addr),
 		dialer:         &net.Dialer{},
-		logChan:        make(chan string, numIPsToCheck),
+		logChan:        make(chan string, defaultNumIPsToCheck),
 	}
 
 	log.SetFormatter(&CustomTextFormatter{})
@@ -117,13 +117,13 @@ func newScanner(addr, port string, threadCount, timeout int, output, showFail bo
 }
 
 func (s *Scanner) startWorkers() {
-	ipChan := make(chan net.IP, numIPsToCheck)
+	ipChan := make(chan net.IP, defaultNumIPsToCheck)
 
 	for i := 0; i < s.numberOfThread; i++ {
 		go s.worker(ipChan)
 	}
 
-	for i := 0; i < numIPsToCheck; i++ {
+	for i := 0; i < defaultNumIPsToCheck; i++ {
 		nextIP := s.nextIP(true)
 		if nextIP != nil {
 			s.wg.Add(1)
@@ -243,7 +243,7 @@ func (s *Scanner) Scan(ip net.IP) {
 
 		// Config for tlsping
 		config := tlsping.Config{
-			Count:              tlsCount,
+			Count:              defaultTlsCount,
 			AvoidTLSHandshake:  tlsHandshake,
 			InsecureSkipVerify: tlsVerify,
 		}
@@ -399,7 +399,7 @@ func findTopServers(fileName string) {
 	})
 
 	// Determine the number of servers to display
-	topCount := numberBestServers
+	topCount := defaultTopServers
 	if len(servers) < topCount {
 		topCount = len(servers)
 	}
