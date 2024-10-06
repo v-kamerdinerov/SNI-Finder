@@ -65,6 +65,7 @@ func main() {
 	addrPtr := flag.String("addr", defaultAddress, "The starting address for the scan")
 	portPtr := flag.String("port", defaultPort, "The port to scan")
 	threadPtr := flag.Int("thread", defaultThreadCount, "The number of threads to run in parallel for scanning")
+	topCountPtr := flag.Int("top", defaultTopServers, "The number of top servers to display")
 	outPutFile := flag.Bool("o", outPutDef, "Is output to results.txt")
 	timeOutPtr := flag.Int("timeOut", defaultTimeout, "The scan timeout in seconds")
 	showFailPtr := flag.Bool("showFail", showFailDef, "Show logs for failed scans")
@@ -83,7 +84,7 @@ func main() {
 	log.Info("Scan completed.")
 
 	// Choice best servers
-	findTopServers(outPutFileName)
+	findTopServers(outPutFileName, *topCountPtr)
 }
 
 func newScanner(addr, port string, threadCount, timeout int, output, showFail bool) *Scanner {
@@ -349,7 +350,7 @@ func (f *CustomTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	return []byte(formattedEntry), nil
 }
 
-func findTopServers(fileName string) {
+func findTopServers(fileName string, topCount int) {
 	file, err := os.Open(fileName)
 	if err != nil {
 		log.Fatalf("Failed to open %s for reading: %v", fileName, err)
@@ -399,7 +400,6 @@ func findTopServers(fileName string) {
 	})
 
 	// Determine the number of servers to display
-	topCount := defaultTopServers
 	if len(servers) < topCount {
 		topCount = len(servers)
 	}
