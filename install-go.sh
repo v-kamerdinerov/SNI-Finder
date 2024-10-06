@@ -1,13 +1,53 @@
 #!/bin/bash
 
+FontColor_Red="\033[31m"
+FontColor_Green="\033[32m"
+FontColor_Yellow="\033[33m"
+FontColor_Suffix="\033[0m"
+
+
+log() {
+    local LEVEL="$1"
+    local MSG="$2"
+    case "${LEVEL}" in
+    INFO)
+        local LEVEL="[${FontColor_Green}${LEVEL}${FontColor_Suffix}]"
+        local MSG="${LEVEL} ${MSG}"
+        ;;
+    WARN)
+        local LEVEL="[${FontColor_Yellow}${LEVEL}${FontColor_Suffix}]"
+        local MSG="${LEVEL} ${MSG}"
+        ;;
+    ERROR)
+        local LEVEL="[${FontColor_Red}${LEVEL}${FontColor_Suffix}]"
+        local MSG="${LEVEL} ${MSG}"
+        ;;
+    *) ;;
+    esac
+    echo -e "${MSG}"
+}
+
+
 # Function to check if the script is being run as root
 check_root() {
     if [ "$EUID" -ne 0 ]; then
         echo
-        echo "Please run this script as root."
+        log ERROR "Please run this script as root."
         echo
         sleep 1
         exit 1
+    fi
+}
+
+# Function to check if golang is installed
+check_go() {
+    if command -v go > /dev/null; then
+        log INFO "Golang installed!"
+        go version
+        sleep 1
+        exit 0
+    else
+        log WARN "Golang not found. Proceed..."
     fi
 }
 
@@ -19,12 +59,12 @@ install_package() {
     elif command -v yum > /dev/null; then
         PKG_MANAGER="yum"
     else
-        echo "Unsupported package manager. Exiting."
+        log ERROR "Unsupported package manager. Exiting."
         exit 1
     fi
 
     echo
-    echo "Updating the OS and installing dependencies..."
+    log WARN "Updating the OS and installing dependencies..."
     echo
     sleep 0.5
 
@@ -39,7 +79,7 @@ install_package() {
     fi
 
     echo
-    echo "OS Updated & Dependencies Installed."
+    log WARN "OS Updated & Dependencies Installed."
     echo
     sleep 0.5
 }
@@ -48,7 +88,7 @@ install_package() {
 install_go() {
     local go_version="go1.21.0"
     echo
-    echo "Installing Go $go_version..."
+    log WARN "Installing Go $go_version..."
     echo
     sleep 0.5
     local go_url="https://go.dev/dl/$go_version.linux-amd64.tar.gz"
@@ -80,12 +120,16 @@ install_go() {
     sleep 0.5
 
     echo
-    echo "Go $go_version installed successfully."
+    log INFO "Go $go_version installed successfully."
     echo
 }
 
+
 # Check if running as root
 check_root
+
+# Check if golang installed
+check_go
 
 # Install dependencies for Go and Git
 install_package
