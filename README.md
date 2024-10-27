@@ -67,14 +67,16 @@ Download the appropriate binary for your system architecture (`amd64` or `arm64`
 
 ## Parameters
 
-| Argument       | Type    | Default Value | Description                                         |
-|----------------|---------|---------------|-----------------------------------------------------|
-| `-addr`        | string  | `0.0.0.0`     | The starting address for the scan.                  |
-| `-port`        | string  | `443`         | The port to scan.                                   |
-| `-thread`      | int     | `128`         | The number of threads to run in parallel for scanning. |
-| `-o`           | bool    | `true`        | Enable or disable output to the `results.txt` file. |
-| `-timeOut`     | int     | `4`           | The scan timeout in seconds.                        |
-| `-showFail`    | bool    | `false`       | Show logs for failed scans.                         |
+| Argument    | Type   | Default Value | Description                                            |
+|-------------|--------|---------------|--------------------------------------------------------|
+| `-addr`     | string | `0.0.0.0`     | The starting address for the scan.                     |
+| `-num`      | int    | `10000`       | The number of IPs to scan.                             |
+| `-o`        | bool   | `true`        | Enable or disable output to the `results.txt` file.    |
+| `-port`     | string | `443`         | The port to scan.                                      |
+| `-showFail` | bool   | `false`       | Show logs for failed scans.                            |
+| `-thread`   | int    | `128`         | The number of threads to run in parallel for scanning. |
+| `-timeOut`  | int    | `4`           | The scan timeout in seconds.                           |
+| `-top`      | int    | `10`          | The number of top servers to display.                  |
 
 ## Example Output
 
