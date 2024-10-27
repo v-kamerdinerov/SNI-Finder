@@ -65,12 +65,14 @@ func main() {
 	addrPtr := flag.String("addr", defaultAddress, "The starting address for the scan")
 	portPtr := flag.String("port", defaultPort, "The port to scan")
 	threadPtr := flag.Int("thread", defaultThreadCount, "The number of threads to run in parallel for scanning")
+	topCountPtr := flag.Int("top", defaultTopServers, "The number of top servers to display")
+	numIPsToCheckPtr := flag.Int("num", defaultNumIPsToCheck, "The number of IPs to scan")
 	outPutFile := flag.Bool("o", outPutDef, "Is output to results.txt")
 	timeOutPtr := flag.Int("timeOut", defaultTimeout, "The scan timeout in seconds")
 	showFailPtr := flag.Bool("showFail", showFailDef, "Show logs for failed scans")
 
 	flag.Parse()
-	scanner := newScanner(*addrPtr, *portPtr, *threadPtr, *timeOutPtr, *outPutFile, *showFailPtr)
+	scanner := newScanner(*addrPtr, *portPtr, *threadPtr, *timeOutPtr, *outPutFile, *showFailPtr, *numIPsToCheckPtr)
 
 	defer scanner.logFile.Close()
 	defer scanner.domainFile.Close()
@@ -78,15 +80,15 @@ func main() {
 	go scanner.logWriter()
 
 	// Start the worker pool
-	scanner.startWorkers()
+	scanner.startWorkers(*numIPsToCheckPtr)
 
 	log.Info("Scan completed.")
 
 	// Choice best servers
-	findTopServers(outPutFileName)
+	findTopServers(outPutFileName, *topCountPtr)
 }
 
-func newScanner(addr, port string, threadCount, timeout int, output, showFail bool) *Scanner {
+func newScanner(addr, port string, threadCount, timeout int, output, showFail bool, numIPsToCheckPtr int) *Scanner {
 	scanner := &Scanner{
 		addr:           addr,
 		port:           port,
@@ -96,7 +98,7 @@ func newScanner(addr, port string, threadCount, timeout int, output, showFail bo
 		numberOfThread: threadCount,
 		ip:             net.ParseIP(addr),
 		dialer:         &net.Dialer{},
-		logChan:        make(chan string, defaultNumIPsToCheck),
+		logChan:        make(chan string, numIPsToCheckPtr),
 	}
 
 	log.SetFormatter(&CustomTextFormatter{})
@@ -116,14 +118,14 @@ func newScanner(addr, port string, threadCount, timeout int, output, showFail bo
 	return scanner
 }
 
-func (s *Scanner) startWorkers() {
-	ipChan := make(chan net.IP, defaultNumIPsToCheck)
+func (s *Scanner) startWorkers(numIPsToCheckPtr int) {
+	ipChan := make(chan net.IP, numIPsToCheckPtr)
 
 	for i := 0; i < s.numberOfThread; i++ {
 		go s.worker(ipChan)
 	}
 
-	for i := 0; i < defaultNumIPsToCheck; i++ {
+	for i := 0; i < numIPsToCheckPtr; i++ {
 		nextIP := s.nextIP(true)
 		if nextIP != nil {
 			s.wg.Add(1)
@@ -349,7 +351,7 @@ func (f *CustomTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	return []byte(formattedEntry), nil
 }
 
-func findTopServers(fileName string) {
+func findTopServers(fileName string, topCount int) {
 	file, err := os.Open(fileName)
 	if err != nil {
 		log.Fatalf("Failed to open %s for reading: %v", fileName, err)
@@ -399,7 +401,6 @@ func findTopServers(fileName string) {
 	})
 
 	// Determine the number of servers to display
-	topCount := defaultTopServers
 	if len(servers) < topCount {
 		topCount = len(servers)
 	}

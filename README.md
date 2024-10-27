@@ -6,6 +6,18 @@
 ![GitHub](https://img.shields.io/github/license/v-kamerdinerov/SNI-Finder)
 [![GitHub tag](https://img.shields.io/github/tag/v-kamerdinerov/SNI-Finder.svg)](https://github.com/v-kamerdinerov/SNI-Finder/tags)
 
+----
+
+<p align="center">
+ <a href="./README.md">
+ English
+ </a>
+ /
+ <a href="./README-RU.md">
+ Русский
+ </a>
+</p>
+
 This app scans a range of IP addresses for domains with TLS 1.3 and HTTP/2 (h2) enabled. It is designed to identify useful SNI (Server Name Indication) domains for various configurations and tests.
 
 ## Table of Contents
@@ -15,21 +27,21 @@ This app scans a range of IP addresses for domains with TLS 1.3 and HTTP/2 (h2) 
   - [Run on Linux/Mac OS](#run-on-linuxmac-os)
   - [Run on Windows](#run-on-windows)
 - [Parameters](#parameters)
+- [Example Output](#example-output)
 - [Building from Source](#building-from-source)
   - [Prerequisites](#prerequisites)
   - [Build Steps](#build-steps)
-- [Example Output](#example-output)
 - [Ethical Usage](#ethical-usage)
 - [Contribution](#contribution)
 - [License](#license)
 
 ## Features
 
-| Feature             | Description                                              |
-|---------------------|----------------------------------------------------------|
-| **TLS 1.3 and HTTP/2** | Scans for domains supporting TLS 1.3 and HTTP/2 to identify modern, secure configurations. |
-| **TLS Ping Display** | Shows TLS Ping results for the scanned domains, helping assess response times. |
-| **Top Servers**     | Outputs the top servers based on the lowest ping values, useful for prioritizing fast servers. |
+| Feature                | Description                                                                                    |
+|------------------------|------------------------------------------------------------------------------------------------|
+| **TLS 1.3 and HTTP/2** | Scans for domains supporting TLS 1.3 and HTTP/2 to identify modern, secure configurations.     |
+| **TLS Ping Display**   | Shows TLS Ping results for the scanned domains, helping assess response times.                 |
+| **Top Servers**        | Outputs the top servers based on the lowest ping values, useful for prioritizing fast servers. |
 
 ### Output Files
 - `results.txt`: Contains the detailed scan log.
@@ -67,14 +79,16 @@ Download the appropriate binary for your system architecture (`amd64` or `arm64`
 
 ## Parameters
 
-| Argument       | Type    | Default Value | Description                                         |
-|----------------|---------|---------------|-----------------------------------------------------|
-| `-addr`        | string  | `0.0.0.0`     | The starting address for the scan.                  |
-| `-port`        | string  | `443`         | The port to scan.                                   |
-| `-thread`      | int     | `128`         | The number of threads to run in parallel for scanning. |
-| `-o`           | bool    | `true`        | Enable or disable output to the `results.txt` file. |
-| `-timeOut`     | int     | `4`           | The scan timeout in seconds.                        |
-| `-showFail`    | bool    | `false`       | Show logs for failed scans.                         |
+| Argument    | Type   | Default Value | Description                                            |
+|-------------|--------|---------------|--------------------------------------------------------|
+| `-addr`     | string | `0.0.0.0`     | The starting address for the scan.                     |
+| `-num`      | int    | `10000`       | The number of IPs to scan.                             |
+| `-o`        | bool   | `true`        | Enable or disable output to the `results.txt` file.    |
+| `-port`     | string | `443`         | The port to scan.                                      |
+| `-showFail` | bool   | `false`       | Show logs for failed scans.                            |
+| `-thread`   | int    | `128`         | The number of threads to run in parallel for scanning. |
+| `-timeOut`  | int    | `4`           | The scan timeout in seconds.                           |
+| `-top`      | int    | `10`          | The number of top servers to display.                  |
 
 ## Example Output
 

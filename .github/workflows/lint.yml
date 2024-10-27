@@ -1,8 +1,9 @@
-name: lint
+name: Lint
 on:
   push:
     branches:
       - main
+      - dev
   pull_request:
 
 env:
