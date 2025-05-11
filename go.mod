@@ -1,6 +1,6 @@
 module github.com/v-kamerdinerov/SNI-Finder
 
-go 1.21.3
+go 1.24.0
 
 require (
 	github.com/airnandez/tlsping v0.0.0-20200601173919-4d7a159e0faa

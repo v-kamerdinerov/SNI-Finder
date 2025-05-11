@@ -86,7 +86,7 @@ install_package() {
 
 # Function to download and install Go
 install_go() {
-    local go_version="go1.21.0"
+    local go_version="go1.24.0"
     echo
     log WARN "Installing Go $go_version..."
     echo
